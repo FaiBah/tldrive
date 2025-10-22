@@ -1,7 +1,7 @@
-name: Teldrive Cloud (Local Mode)
+name: Teldrive Cloud (Fixed Extract)
 
 on:
-  workflow_dispatch:     # Manual start
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,17 +9,17 @@ on:
 jobs:
   run-teldrive:
     runs-on: ubuntu-latest
-    timeout-minutes: 3600   # Run up to 1 hour
+    timeout-minutes: 3600
 
     steps:
       - name: Download Teldrive
         run: |
           wget -q https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-linux-amd64.tar.gz
           tar -xzf teldrive-1.7.0-linux-amd64.tar.gz
-          chmod +x teldrive-1.7.0-linux-amd64/teldrive
+          chmod +x teldrive
 
       - name: Run Teldrive locally
         run: |
-          ./teldrive-1.7.0-linux-amd64/teldrive --port 8080 &
+          ./teldrive --port 8080 &
           sleep 10
           curl -v http://localhost:8080 || true
