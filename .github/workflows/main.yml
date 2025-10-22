@@ -1,0 +1,36 @@
+name: Teldrive Runner
+
+on:
+  workflow_dispatch:   # Manual trigger
+  push:
+    branches:
+      - main
+
+jobs:
+  run-teldrive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Teldrive binary
+        run: |
+          wget -q https://github.com/tgdrive/teldrive/releases/latest/download/teldrive-linux-amd64
+          chmod +x teldrive-linux-amd64
+
+      - name: Run Teldrive
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_PHONE_NUMBER: ${{ secrets.TG_PHONE_NUMBER }}
+          TG_ENCRYPTION_KEY: ${{ secrets.TG_ENCRYPTION_KEY }}
+          DB_DATA_SOURCE: "sqlite:///data/teldrive.db"
+        run: |
+          mkdir -p data
+          ./teldrive-linux-amd64 run \
+            --db-data-source "$DB_DATA_SOURCE" \
+            --tg-api-id "$TG_API_ID" \
+            --tg-api-hash "$TG_API_HASH" \
+            --tg-phone-number "$TG_PHONE_NUMBER" \
+            --tg-uploads-encryption-key "$TG_ENCRYPTION_KEY"
