@@ -16,7 +16,7 @@ jobs:
 
       - name: Download Teldrive binary
         run: |
-          wget -q https://github.com/tgdrive/teldrive/releases/latest/download/teldrive-linux-amd64
+          wget -q https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-linux-amd64.tar.gz
           chmod +x teldrive-linux-amd64
 
       - name: Run Teldrive
