@@ -6,7 +6,7 @@ on:
 jobs:
   teldrive:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # up to 6 hours
+    timeout-minutes: 360  # 6 hours
 
     steps:
       - name: Checkout repository
@@ -33,10 +33,11 @@ jobs:
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
           cd teldrive
-          nohup ./teldrive --port 8080 \
+          nohup ./teldrive run \
+            --listen :8080 \
             --telegram-api-id "$TELEGRAM_API_ID" \
             --telegram-api-hash "$TELEGRAM_API_HASH" &
           cd ..
           nohup ./playit -s "$PLAYIT_AUTH" &
-          echo "✅ Teldrive started and connected to Playit tunnel"
-          sleep 3600  # 1 hour runtime (can increase)
+          echo "✅ Teldrive started on port 8080 and Playit tunnel is active."
+          sleep 3600  # keep alive for 1 hour
