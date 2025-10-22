@@ -1,4 +1,4 @@
-name: Teldrive Cloud (Playit Tunnel)
+name: Teldrive Cloud (Playit + Telegram API)
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   teldrive:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours max runtime
+    timeout-minutes: 360  # up to 6 hours
 
     steps:
       - name: Checkout repository
@@ -26,22 +26,17 @@ jobs:
           chmod +x playit-linux-amd64
           mv playit-linux-amd64 playit
 
-      - name: Run Teldrive and Playit
+      - name: Run Teldrive + Playit
         env:
           PLAYIT_AUTH: ${{ secrets.PLAYIT_AUTH }}
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
           cd teldrive
-          nohup ./teldrive --port 8080 > ../teldrive.log 2>&1 &
+          nohup ./teldrive --port 8080 \
+            --telegram-api-id "$TELEGRAM_API_ID" \
+            --telegram-api-hash "$TELEGRAM_API_HASH" &
           cd ..
-          nohup ./playit -s "$PLAYIT_AUTH" > playit.log 2>&1 &
-          echo "Teldrive and Playit started."
-          sleep 3600  # Run for 1 hour (you can increase up to 21600 for 6h)
-
-      - name: Upload Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: teldrive-logs
-          path: |
-            teldrive.log
-            playit.log
+          nohup ./playit -s "$PLAYIT_AUTH" &
+          echo "✅ Teldrive started and connected to Playit tunnel"
+          sleep 3600  # 1 hour runtime (can increase)
