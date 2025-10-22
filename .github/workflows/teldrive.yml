@@ -1,4 +1,4 @@
-name: Run Teldrive
+name: Teldrive Cloud (Playit Tunnel)
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   teldrive:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 360  # 6 hours max runtime
 
     steps:
       - name: Checkout repository
@@ -20,16 +20,28 @@ jobs:
           tar -xzf teldrive-1.7.0-linux-amd64.tar.gz
           chmod +x teldrive
 
-      - name: Run Teldrive
+      - name: Download Playit
+        run: |
+          wget -q https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
+          chmod +x playit-linux-amd64
+          mv playit-linux-amd64 playit
+
+      - name: Run Teldrive and Playit
+        env:
+          PLAYIT_AUTH: ${{ secrets.PLAYIT_AUTH }}
         run: |
           cd teldrive
-          nohup ./teldrive > ../teldrive.log 2>&1 &
-          echo "Teldrive started."
-          sleep 180  # Run for 3 minutes (adjust if needed)
+          nohup ./teldrive --port 8080 > ../teldrive.log 2>&1 &
+          cd ..
+          nohup ./playit -s "$PLAYIT_AUTH" > playit.log 2>&1 &
+          echo "Teldrive and Playit started."
+          sleep 3600  # Run for 1 hour (you can increase up to 21600 for 6h)
 
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: teldrive-logs
-          path: teldrive.log
+          path: |
+            teldrive.log
+            playit.log
