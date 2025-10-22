@@ -1,25 +1,35 @@
-name: Teldrive Cloud (Fixed Extract)
+name: Run Teldrive
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
-  run-teldrive:
+  teldrive:
     runs-on: ubuntu-latest
-    timeout-minutes: 3600
+    timeout-minutes: 360
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download Teldrive
         run: |
+          mkdir -p teldrive
+          cd teldrive
           wget -q https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-linux-amd64.tar.gz
           tar -xzf teldrive-1.7.0-linux-amd64.tar.gz
           chmod +x teldrive
 
-      - name: Run Teldrive locally
+      - name: Run Teldrive
         run: |
-          ./teldrive --port 8080 &
-          sleep 10
-          curl -v http://localhost:8080 || true
+          cd teldrive
+          nohup ./teldrive > ../teldrive.log 2>&1 &
+          echo "Teldrive started."
+          sleep 180  # Run for 3 minutes (adjust if needed)
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teldrive-logs
+          path: teldrive.log
