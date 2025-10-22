@@ -1,43 +1,46 @@
-name: Teldrive Cloud (Playit + Telegram API)
+name: Run Teldrive with Playit Tunnel
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # manual trigger
 
 jobs:
-  teldrive:
+  run-teldrive:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours
+    timeout-minutes: 3600
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Teldrive
+      - name: Download Teldrive binary
         run: |
-          mkdir -p teldrive
-          cd teldrive
           wget -q https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-linux-amd64.tar.gz
           tar -xzf teldrive-1.7.0-linux-amd64.tar.gz
+          mv teldrive-1.7.0-linux-amd64 teldrive
           chmod +x teldrive
 
-      - name: Download Playit
+      - name: Run Teldrive server
+        run: |
+          nohup ./teldrive serve > server.log 2>&1 &
+          sleep 5
+          echo "Teldrive server started."
+
+      - name: Download Playit client
         run: |
           wget -q https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux-amd64
-          chmod +x playit-linux-amd64
           mv playit-linux-amd64 playit
+          chmod +x playit
 
-      - name: Run Teldrive + Playit
+      - name: Connect Playit tunnel
         env:
           PLAYIT_AUTH: ${{ secrets.PLAYIT_AUTH }}
-          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
-          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
-          cd teldrive
-          nohup ./teldrive run \
-            --listen :8080 \
-            --telegram-api-id "$TELEGRAM_API_ID" \
-            --telegram-api-hash "$TELEGRAM_API_HASH" &
-          cd ..
-          nohup ./playit -s "$PLAYIT_AUTH" &
-          echo "✅ Teldrive started on port 8080 and Playit tunnel is active."
-          sleep 3600  # keep alive for 1 hour
+          echo "Connecting Playit tunnel..."
+          nohup ./playit --secret "$PLAYIT_AUTH" > playit.log 2>&1 &
+          sleep 10
+          echo "Playit tunnel started successfully."
+
+      - name: Keep alive
+        run: |
+          echo "Running... Press Ctrl+C to stop locally."
+          tail -f /dev/null
