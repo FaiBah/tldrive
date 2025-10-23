@@ -43,14 +43,26 @@ jobs:
           Expand-Archive -Path "teldrive.zip" -DestinationPath "teldrive"
           Rename-Item -Path "teldrive\teldrive-1.7.0-windows-amd64.exe" -NewName "teldrive.exe"
 
+      - name: Create config.toml
+        shell: pwsh
+        run: |
+          $dataSource = "postgres://teldrive:password123@localhost:5432/teldrive"
+          $config = "[db]`n" +
+                    "data-source = `"$dataSource`"`n" +
+                    "`n" +
+                    "[jwt]`n" +
+                    "allowed-users = [\"YesBusy\"]`n" +
+                    "secret = \"0b3157bc7afa4cfafca0b08a06975a39\"`n" +
+                    "`n" +
+                    "[tg.uploads]`n" +
+                    "encryption-key = \".ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2\"`n"
+          New-Item -ItemType File -Path "teldrive/config.toml" -Force | Out-Null
+          Set-Content -Path "teldrive/config.toml" -Value $config -Encoding UTF8
+          Write-Host "✅ Config file created"
+
       - name: Run Teldrive
         shell: pwsh
         run: |
           cd teldrive
-          $dataSource = "postgres://teldrive:password123@localhost:5432/teldrive"
-          @"
-data-source = "$dataSource"
-port = 8080
-"@ | Out-File -Encoding utf8 config.toml
-          Write-Host "✅ Configuration written. Starting Teldrive..."
+          Write-Host "🚀 Starting Teldrive..."
           ./teldrive.exe --config config.toml
