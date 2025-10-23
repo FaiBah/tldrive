@@ -1,4 +1,4 @@
-name: Run Teldrive with Playit Tunnel
+name: Teldrive Cloud + PostgreSQL + Playit
 
 on:
   workflow_dispatch:
@@ -8,6 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3600
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: teldrive
+          POSTGRES_PASSWORD: teldrive
+          POSTGRES_DB: teldrive
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U teldrive"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,18 +31,38 @@ jobs:
         run: |
           wget -q https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-linux-amd64.tar.gz
           tar -xzf teldrive-1.7.0-linux-amd64.tar.gz
-          ls -l
-          # Find the extracted binary and rename it to teldrive
           FILE=$(find . -type f -name "teldrive*" | head -n 1)
           chmod +x "$FILE"
           mv "$FILE" teldrive
-          ./teldrive --version
+          ./teldrive version
 
-      - name: Run Teldrive server
+      - name: Create Teldrive config.toml
         run: |
-          nohup ./teldrive serve > server.log 2>&1 &
-          sleep 5
-          echo "✅ Teldrive server started."
+          mkdir -p ~/.teldrive
+          cat <<EOF > ~/.teldrive/config.toml
+[db]
+data-source = "postgres://teldrive:teldrive@localhost:5432/teldrive"
+prepare-stmt = false
+
+[db.pool]
+enable = false
+
+[jwt]
+allowed-users = ["YesBusy"]
+secret = "0b3157bc7afa4cfafca0b08a06975a39"
+
+[tg.uploads]
+encryption-key = ".ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2"
+EOF
+          echo "✅ Config file created at ~/.teldrive/config.toml"
+          cat ~/.teldrive/config.toml
+
+      - name: Start Teldrive
+        run: |
+          nohup ./teldrive run -c ~/.teldrive/config.toml > teldrive.log 2>&1 &
+          sleep 10
+          echo "✅ Teldrive started."
+          tail -n 20 teldrive.log
 
       - name: Download Playit client
         run: |
@@ -42,12 +77,14 @@ jobs:
           echo "🔗 Connecting Playit tunnel..."
           nohup ./playit --secret "$PLAYIT_AUTH" > playit.log 2>&1 &
           sleep 10
-          echo "✅ Playit tunnel started successfully."
-          echo "--- PLAYIT LOG START ---"
-          tail -n 20 playit.log
-          echo "--- PLAYIT LOG END ---"
+          echo "✅ Playit tunnel active."
+          echo ""
+          echo "🌍 Public URL:"
+          grep -Eo 'https://[a-zA-Z0-9.-]+\.playit\.gg' playit.log || echo "⚠️ No public URL found yet."
+          echo ""
+          tail -n 20 playit.log || true
 
       - name: Keep alive
         run: |
-          echo "🟢 Workflow is now running (Teldrive + Playit)."
+          echo "🟢 Running Teldrive + PostgreSQL + Playit tunnel..."
           tail -f /dev/null
