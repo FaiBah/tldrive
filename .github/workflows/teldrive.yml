@@ -12,12 +12,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Teldrive (Windows)
+      - name: Download and Extract Teldrive
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip" -OutFile "teldrive.zip"
           Expand-Archive -Path "teldrive.zip" -DestinationPath "."
-          Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive"
+          if (Test-Path "teldrive-1.7.0-windows-amd64") {
+              Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive"
+          } elseif (-not (Test-Path "teldrive")) {
+              New-Item -ItemType Directory -Path "teldrive" | Out-Null
+              Get-ChildItem -Path . -Include teldrive.exe -Recurse | Move-Item -Destination "teldrive"
+          }
+          Write-Host "✅ Teldrive extracted successfully."
 
       - name: Create config.toml
         shell: pwsh
