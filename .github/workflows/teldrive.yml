@@ -1,4 +1,4 @@
-name: Teldrive Windows
+name: Run Teldrive (Windows + PostgreSQL)
 
 on:
   workflow_dispatch:
@@ -6,38 +6,51 @@ on:
 jobs:
   run-teldrive:
     runs-on: windows-latest
-    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: teldrive
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: teldrive
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U teldrive"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download and Extract Teldrive
+      - name: Wait for PostgreSQL to be ready
+        shell: pwsh
+        run: |
+          Write-Host "Waiting for PostgreSQL to be ready..."
+          Start-Sleep -Seconds 15
+
+      - name: Download Teldrive
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip" -OutFile "teldrive.zip"
-          Expand-Archive -Path "teldrive.zip" -DestinationPath "."
-          if (Test-Path "teldrive-1.7.0-windows-amd64") {
-              Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive"
-          } elseif (-not (Test-Path "teldrive")) {
-              New-Item -ItemType Directory -Path "teldrive" | Out-Null
-              Get-ChildItem -Path . -Include teldrive.exe -Recurse | Move-Item -Destination "teldrive"
-          }
-          Write-Host "✅ Teldrive extracted successfully."
 
-      - name: Create config.toml
+      - name: Extract Teldrive
         shell: pwsh
         run: |
-          New-Item -Path "teldrive\config.toml" -ItemType File -Force | Out-Null
-          Add-Content -Path "teldrive\config.toml" "[jwt]"
-          Add-Content -Path "teldrive\config.toml" "allowed-users = ['YesBusy']"
-          Add-Content -Path "teldrive\config.toml" "secret = '0b3157bc7afa4cfafca0b08a06975a39'"
-          Add-Content -Path "teldrive\config.toml" ""
-          Add-Content -Path "teldrive\config.toml" "[tg.uploads]"
-          Add-Content -Path "teldrive\config.toml" "encryption-key = '.ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2'"
+          Expand-Archive -Path "teldrive.zip" -DestinationPath "teldrive"
+          Rename-Item -Path "teldrive\teldrive-1.7.0-windows-amd64.exe" -NewName "teldrive.exe"
 
       - name: Run Teldrive
         shell: pwsh
         run: |
           cd teldrive
-          .\teldrive.exe run --server-port 8080
+          $dataSource = "postgres://teldrive:password123@localhost:5432/teldrive"
+          @"
+data-source = "$dataSource"
+port = 8080
+"@ | Out-File -Encoding utf8 config.toml
+          Write-Host "✅ Configuration written. Starting Teldrive..."
+          ./teldrive.exe --config config.toml
