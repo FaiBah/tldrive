@@ -14,25 +14,27 @@ jobs:
 
       - name: Download Teldrive (Windows)
         run: |
-          Invoke-WebRequest -Uri https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip -OutFile teldrive.zip
-          Expand-Archive -Path teldrive.zip -DestinationPath .
+          Invoke-WebRequest -Uri "https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip" -OutFile "teldrive.zip"
+          Expand-Archive -Path "teldrive.zip" -DestinationPath "."
           Rename-Item -Path "teldrive-1.7.0-windows-amd64" -NewName "teldrive"
           cd teldrive
           dir
 
       - name: Create config.toml
+        shell: pwsh
         run: |
           cd teldrive
-          Set-Content -Path config.toml -Value @"
+          @"
 [jwt]
-allowed-users = ["YesBusy"]
-secret = "0b3157bc7afa4cfafca0b08a06975a39"
+allowed-users = ['YesBusy']
+secret = '0b3157bc7afa4cfafca0b08a06975a39'
 
 [tg.uploads]
-encryption-key = ".ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2"
-"@
+encryption-key = '.ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2'
+"@ | Out-File -Encoding UTF8 -FilePath "config.toml"
 
       - name: Run Teldrive
+        shell: pwsh
         run: |
           cd teldrive
-          .\teldrive.exe run --port 8080
+          .\teldrive.exe run --server-port 8080
