@@ -16,15 +16,22 @@ jobs:
         run: |
           choco install postgresql15 -y
           $env:Path += ";C:\Program Files\PostgreSQL\15\bin"
-          Start-Service postgresql
-          pg_ctl status
+          $pgService = (Get-Service | Where-Object { $_.Name -like "postgresql*" }).Name
+          if ($pgService) {
+            Start-Service $pgService
+            Write-Host "✅ Started PostgreSQL service: $pgService"
+          } else {
+            Write-Host "⚠️ PostgreSQL service not found, trying to initdb manually..."
+            & "C:\Program Files\PostgreSQL\15\bin\initdb.exe" -D "C:\pgdata" -U postgres --auth=trust
+            & "C:\Program Files\PostgreSQL\15\bin\pg_ctl.exe" start -D "C:\pgdata" -l logfile
+          }
 
       - name: Setup PostgreSQL Database
         shell: pwsh
         run: |
           $env:Path += ";C:\Program Files\PostgreSQL\15\bin"
-          psql -U postgres -c "CREATE DATABASE teldrive;"
-          psql -U postgres -c "CREATE USER teldrive WITH PASSWORD 'password123';"
+          psql -U postgres -c "CREATE DATABASE teldrive;" || Write-Host "Database may already exist."
+          psql -U postgres -c "CREATE USER teldrive WITH PASSWORD 'password123';" || Write-Host "User may already exist."
           psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE teldrive TO teldrive;"
 
       - name: Download and Extract Teldrive
@@ -32,12 +39,11 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip" -OutFile "teldrive.zip"
           Expand-Archive -Path "teldrive.zip" -DestinationPath "."
-          Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive"
+          Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive" -ErrorAction SilentlyContinue
 
       - name: Create config.toml
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "teldrive" | Out-Null
           @"
           [db]
           data-source = "postgres://teldrive:password123@localhost:5432/teldrive"
