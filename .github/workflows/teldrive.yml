@@ -7,62 +7,51 @@ jobs:
   run-teldrive:
     runs-on: windows-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: teldrive
-          POSTGRES_PASSWORD: password123
-          POSTGRES_DB: teldrive
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U teldrive"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Wait for PostgreSQL to be ready
+      - name: Install PostgreSQL
         shell: pwsh
         run: |
-          Write-Host "Waiting for PostgreSQL to be ready..."
-          Start-Sleep -Seconds 15
+          choco install postgresql15 -y
+          $env:Path += ";C:\Program Files\PostgreSQL\15\bin"
+          Start-Service postgresql
+          pg_ctl status
 
-      - name: Download Teldrive
+      - name: Setup PostgreSQL Database
+        shell: pwsh
+        run: |
+          $env:Path += ";C:\Program Files\PostgreSQL\15\bin"
+          psql -U postgres -c "CREATE DATABASE teldrive;"
+          psql -U postgres -c "CREATE USER teldrive WITH PASSWORD 'password123';"
+          psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE teldrive TO teldrive;"
+
+      - name: Download and Extract Teldrive
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip" -OutFile "teldrive.zip"
-
-      - name: Extract Teldrive
-        shell: pwsh
-        run: |
-          Expand-Archive -Path "teldrive.zip" -DestinationPath "teldrive"
-          Rename-Item -Path "teldrive\teldrive-1.7.0-windows-amd64.exe" -NewName "teldrive.exe"
+          Expand-Archive -Path "teldrive.zip" -DestinationPath "."
+          Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive"
 
       - name: Create config.toml
         shell: pwsh
         run: |
-          $dataSource = "postgres://teldrive:password123@localhost:5432/teldrive"
-          $config = "[db]`n" +
-                    "data-source = `"$dataSource`"`n" +
-                    "`n" +
-                    "[jwt]`n" +
-                    "allowed-users = [\"YesBusy\"]`n" +
-                    "secret = \"0b3157bc7afa4cfafca0b08a06975a39\"`n" +
-                    "`n" +
-                    "[tg.uploads]`n" +
-                    "encryption-key = \".ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2\"`n"
-          New-Item -ItemType File -Path "teldrive/config.toml" -Force | Out-Null
-          Set-Content -Path "teldrive/config.toml" -Value $config -Encoding UTF8
-          Write-Host "✅ Config file created"
+          New-Item -ItemType Directory -Force -Path "teldrive" | Out-Null
+          @"
+          [db]
+          data-source = "postgres://teldrive:password123@localhost:5432/teldrive"
+
+          [jwt]
+          allowed-users = ["YesBusy"]
+          secret = "0b3157bc7afa4cfafca0b08a06975a39"
+
+          [tg.uploads]
+          encryption-key = ".ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2"
+          "@ | Out-File -FilePath "teldrive\config.toml" -Encoding UTF8
 
       - name: Run Teldrive
         shell: pwsh
         run: |
           cd teldrive
-          Write-Host "🚀 Starting Teldrive..."
-          ./teldrive.exe --config config.toml
+          .\teldrive.exe run --config config.toml
