@@ -13,25 +13,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Teldrive (Windows)
+        shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/tgdrive/teldrive/releases/download/1.7.0/teldrive-1.7.0-windows-amd64.zip" -OutFile "teldrive.zip"
           Expand-Archive -Path "teldrive.zip" -DestinationPath "."
-          Rename-Item -Path "teldrive-1.7.0-windows-amd64" -NewName "teldrive"
-          cd teldrive
-          dir
+          Rename-Item "teldrive-1.7.0-windows-amd64" "teldrive"
 
       - name: Create config.toml
         shell: pwsh
         run: |
-          cd teldrive
-          @"
-[jwt]
-allowed-users = ['YesBusy']
-secret = '0b3157bc7afa4cfafca0b08a06975a39'
-
-[tg.uploads]
-encryption-key = '.ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2'
-"@ | Out-File -Encoding UTF8 -FilePath "config.toml"
+          New-Item -Path "teldrive\config.toml" -ItemType File -Force | Out-Null
+          Add-Content -Path "teldrive\config.toml" "[jwt]"
+          Add-Content -Path "teldrive\config.toml" "allowed-users = ['YesBusy']"
+          Add-Content -Path "teldrive\config.toml" "secret = '0b3157bc7afa4cfafca0b08a06975a39'"
+          Add-Content -Path "teldrive\config.toml" ""
+          Add-Content -Path "teldrive\config.toml" "[tg.uploads]"
+          Add-Content -Path "teldrive\config.toml" "encryption-key = '.ZEgyoLgJ0UNYMx5wW1wzDaddWIoa2B2'"
 
       - name: Run Teldrive
         shell: pwsh
